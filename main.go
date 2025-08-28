@@ -196,7 +196,8 @@ var activeprojectCmd = &cobra.Command{
 			}
 
 		} else {
-			return fmt.Errorf("you need to be authenticated, try 'twigga login'")
+			fmt.Println("you need to be authenticated, try 'twigga login'")
+			return nil
 		}
 	},
 }
