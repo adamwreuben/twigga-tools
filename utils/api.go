@@ -373,8 +373,6 @@ func (a *APIClient) SetBucketPolicy(ctx context.Context, bucket, policy string) 
 	url := fmt.Sprintf("%s/storage/buckets/%s/policy", strings.TrimRight(a.BaseURL, "/"), bucket)
 	req := map[string]string{"policy": policy}
 
-	// url := fmt.Sprintf("http://localhost:9867/storage/buckets/%s/policy", bucket)
-	fmt.Println("Here url: ", url)
 	b, status, err := a.doJSON(ctx, http.MethodPut, url, req)
 	if err != nil {
 		return err
