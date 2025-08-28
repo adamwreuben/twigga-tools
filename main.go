@@ -155,11 +155,15 @@ var projectUseCmd = &cobra.Command{
 			hostingBucket := "hosting-" + strings.ToLower(projectId)
 			Cfg.ProjectId = projectId
 
-			fmt.Println("hostingBucket: ", hostingBucket)
-
 			_, err := APIClient.AddBucket(context.Background(), hostingBucket)
 			if err != nil {
 				log.Println("ERROR ProjectUse: ", err.Error())
+			}
+
+			//make it public accessible
+			err = APIClient.SetBucketPolicy(context.Background(), hostingBucket, "public")
+			if err != nil {
+				log.Println("ERROR SetBucketPolicy: ", err.Error())
 			}
 
 			err = utils.SaveConfig(CfgFile, Cfg)

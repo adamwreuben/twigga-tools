@@ -367,3 +367,18 @@ func (a *APIClient) PointChannel(ctx context.Context, bucket, siteID, channel, v
 
 	return nil
 }
+
+// SetBucketPolicy sets the access policy of a bucket ("public" or "private").
+func (a *APIClient) SetBucketPolicy(ctx context.Context, bucket, policy string) error {
+	url := fmt.Sprintf("%s/storage/buckets/%s/policy", strings.TrimRight(a.BaseURL, "/"), bucket)
+	req := map[string]string{"policy": policy}
+
+	b, status, err := a.doJSON(ctx, http.MethodPost, url, req)
+	if err != nil {
+		return err
+	}
+	if status >= 400 {
+		return fmt.Errorf("set bucket policy failed: %s", string(b))
+	}
+	return nil
+}
