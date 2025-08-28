@@ -374,7 +374,7 @@ var hostingDeployCmd = &cobra.Command{
 			return fmt.Errorf("failed to point main channel: %v", err)
 		}
 
-		fmt.Printf("Site deployed and 'main' site pointed: https://%s.apps.bongocloud.co.tz\n", site)
+		fmt.Printf("Site deployed and pointed: https://%s.apps.bongocloud.co.tz\n", site)
 		return nil
 	},
 }
