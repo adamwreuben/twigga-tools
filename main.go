@@ -499,6 +499,8 @@ var functionsDeployCmd = &cobra.Command{
 	},
 }
 
+const CLIAppToken = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImFwcElkIjoidHdpZ2dhdG9vbHMiLCJhcHBTZWNyZXQiOiI1MjAxYzhmNC1hYjE3LTRmZTQtOTcxZC1lZGMwMzgzOTMwZGMiLCJleHAiOjE3NTg1Mzg1NTR9LCJleHAiOjE3NTg1Mzg1NTR9.wSJM1YnC4VdOGzSUmZ3r8v0uOJGA7g9L2X3fgQkdt6ciafX9SLnVK8zkExjC5arrutD4tRolyeUg-YpTJaJS4mOdxL3LMX8uulnbGUhpEbrawFMyGuStsZ7dgLxFpUxlAHbaQfutRFnoPYZnsjqmhWsgeW44taDe0S7HaypNqJJsNXK21iA-8-bToFKepTbLeKl9jCLfseyyGfrFcuQBXjuhjnJiwfQXFkKeoZ8-aE86fdwidCpbOmEEf9z-XwDwo_QzzbTyQh7Npr0MQOggXlVWF7TRhDqQa4X0EH4_ErmIGZEC9W57gvKiShdZYrhl2VYtgwHP1bd7UeWr6cw-Pw"
+
 func main() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -511,21 +513,17 @@ func main() {
 		AccountBaseURL: "https://account.bongocloud.co.tz",
 		Status:         false,
 		ProjectId:      "",
-		Token:          "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImFwcElkIjoidHdpZ2dhdG9vbHMiLCJhcHBTZWNyZXQiOiI1MjAxYzhmNC1hYjE3LTRmZTQtOTcxZC1lZGMwMzgzOTMwZGMiLCJleHAiOjE3NTg1Mzg1NTR9LCJleHAiOjE3NTg1Mzg1NTR9.wSJM1YnC4VdOGzSUmZ3r8v0uOJGA7g9L2X3fgQkdt6ciafX9SLnVK8zkExjC5arrutD4tRolyeUg-YpTJaJS4mOdxL3LMX8uulnbGUhpEbrawFMyGuStsZ7dgLxFpUxlAHbaQfutRFnoPYZnsjqmhWsgeW44taDe0S7HaypNqJJsNXK21iA-8-bToFKepTbLeKl9jCLfseyyGfrFcuQBXjuhjnJiwfQXFkKeoZ8-aE86fdwidCpbOmEEf9z-XwDwo_QzzbTyQh7Npr0MQOggXlVWF7TRhDqQa4X0EH4_ErmIGZEC9W57gvKiShdZYrhl2VYtgwHP1bd7UeWr6cw-Pw",
+		Token:          "",
 	}
 
 	CfgFile = filepath.Join(home, ".twigga", "config.json")
 
 	fileConf, err := utils.LoadConfig(CfgFile)
-	if err != nil {
-		fmt.Println("Error while loading configs: ", err.Error())
-	}
-
-	if fileConf.Status {
+	if err == nil && fileConf.Status {
 		Cfg = fileConf
 	}
 
-	APIClient = utils.NewAPIClientFromConfig(Cfg)
+	APIClient = utils.NewAPIClientFromConfig(Cfg, CLIAppToken)
 
 	setSubCommand()
 

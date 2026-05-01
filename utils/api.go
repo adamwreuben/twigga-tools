@@ -20,16 +20,18 @@ import (
 type APIClient struct {
 	BaseURL        string
 	AccountBaseURL string
-	Token          string
+	UserToken      string
+	AppToken       string
 	HTTP           *http.Client
 }
 
-func NewAPIClientFromConfig(cfg *models.Config) *APIClient {
+func NewAPIClientFromConfig(cfg *models.Config, appToken string) *APIClient {
 
 	return &APIClient{
 		BaseURL:        cfg.BaseURL,
 		AccountBaseURL: cfg.AccountBaseURL,
-		Token:          cfg.Token,
+		AppToken:       appToken,
+		UserToken:      cfg.Token,
 		HTTP:           &http.Client{Timeout: 10 * time.Minute},
 	}
 }
@@ -48,9 +50,10 @@ func (a *APIClient) doJSON(ctx context.Context, method, url string, body any) ([
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if a.Token != "" {
-		req.Header.Set("BONGO-TOKEN", a.Token)
+	if a.UserToken != "" {
+		req.Header.Set("BONGO-TOKEN", a.UserToken)
 	}
+
 	resp, err := a.HTTP.Do(req)
 	if err != nil {
 		return nil, 0, err
@@ -61,20 +64,35 @@ func (a *APIClient) doJSON(ctx context.Context, method, url string, body any) ([
 }
 
 func (a *APIClient) Authenticate(ctx context.Context, redirectTo string) (string, error) {
+
 	url := fmt.Sprintf("%s/application/authenticate", strings.TrimRight(a.AccountBaseURL, "/"))
-	req := map[string]string{"redirectTo": redirectTo}
-	b, status, err := a.doJSON(ctx, http.MethodPost, url, req)
+	reqBody := map[string]string{"redirectTo": redirectTo}
+
+	bs, _ := json.Marshal(reqBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bs))
 	if err != nil {
 		return "", err
 	}
-	if status >= 400 {
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("BONGO-TOKEN", a.AppToken)
+
+	resp, err := a.HTTP.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	b, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
 		return "", fmt.Errorf("authenticate failed: %s", string(b))
 	}
+
 	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return "", err
 	}
-	// check common keys
+
 	for _, k := range []string{"url", "auth_url", "authUrl", "authorization_url"} {
 		if v, ok := m[k]; ok {
 			if s, ok2 := v.(string); ok2 && s != "" {
@@ -82,13 +100,7 @@ func (a *APIClient) Authenticate(ctx context.Context, redirectTo string) (string
 			}
 		}
 	}
-	// fallback: find any string that looks like a url
-	for _, v := range m {
-		if s, ok := v.(string); ok && strings.HasPrefix(s, "http") {
-			return s, nil
-		}
-	}
-	return "", fmt.Errorf("no auth url found in response: %s", string(b))
+	return "", fmt.Errorf("no auth url found in response")
 }
 
 // CreateDocumentAuto creates a new document with auto-generated ID
@@ -200,8 +212,8 @@ func (a *APIClient) UploadFiles(ctx context.Context, bucket string, filePaths []
 		return nil, err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	if a.Token != "" {
-		req.Header.Set("BONGO-TOKEN", a.Token)
+	if a.UserToken != "" {
+		req.Header.Set("BONGO-TOKEN", a.UserToken)
 	}
 
 	resp, err := a.HTTP.Do(req)
@@ -320,8 +332,8 @@ func (a *APIClient) UploadSiteVersion(ctx context.Context, bucket, siteID, versi
 		return nil, err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	if a.Token != "" {
-		req.Header.Set("BONGO-TOKEN", a.Token)
+	if a.UserToken != "" {
+		req.Header.Set("BONGO-TOKEN", a.UserToken)
 	}
 
 	resp, err := a.HTTP.Do(req)
@@ -351,8 +363,8 @@ func (a *APIClient) PointChannel(ctx context.Context, bucket, siteID, channel, v
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if a.Token != "" {
-		req.Header.Set("BONGO-TOKEN", a.Token)
+	if a.UserToken != "" {
+		req.Header.Set("BONGO-TOKEN", a.UserToken)
 	}
 
 	resp, err := a.HTTP.Do(req)
@@ -412,8 +424,8 @@ func (a *APIClient) DeployFunction(ctx context.Context, projectId, functionName,
 		return err
 	}
 	req.Header.Set("Content-Type", w.FormDataContentType())
-	if a.Token != "" {
-		req.Header.Set("BONGO-TOKEN", a.Token)
+	if a.UserToken != "" {
+		req.Header.Set("BONGO-TOKEN", a.UserToken)
 	}
 
 	resp, err := a.HTTP.Do(req)
