@@ -18,23 +18,35 @@ const binPath = path.join(__dirname, platform === 'win32' ? 'twigga.exe' : 'twig
 
 console.log(`Downloading Twigga CLI for ${platform} (${arch})...`);
 
-https.get(downloadUrl, (res) => {
-    if (res.statusCode !== 200) {
-        console.error(`Failed to download CLI: HTTP ${res.statusCode}`);
-        process.exit(1);
-    }
-    
-    const file = fs.createWriteStream(binPath);
-    res.pipe(file);
-    
-    file.on('finish', () => {
-        file.close();
-        // Make the downloaded Go binary executable!
-        if (platform !== 'win32') {
-            fs.chmodSync(binPath, 0o755); 
+function download(url, destination) {
+    https.get(url, (res) => {
+        // Redirect for GitHub: 302)
+        if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
+            console.log('Following redirect...');
+            download(res.headers.location, destination);
+            return;
         }
-        console.log('Twigga CLI installed successfully!');
+
+        if (res.statusCode !== 200) {
+            console.error(`Failed to download CLI: HTTP ${res.statusCode}`);
+            process.exit(1);
+        }
+        
+        const file = fs.createWriteStream(destination);
+        res.pipe(file);
+        
+        file.on('finish', () => {
+            file.close();
+            // Make the downloaded Go binary executable
+            if (platform !== 'win32') {
+                fs.chmodSync(destination, 0o755); 
+            }
+            console.log('Twigga CLI installed successfully!');
+        });
+    }).on('error', (err) => {
+        console.error('Download error:', err.message);
+        fs.unlink(destination, () => process.exit(1));
     });
-}).on('error', (err) => {
-    console.error('❌ Download error:', err.message);
-});
+}
+
+download(initialUrl, binPath);
