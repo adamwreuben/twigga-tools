@@ -382,3 +382,50 @@ func (a *APIClient) SetBucketPolicy(ctx context.Context, bucket, policy string) 
 	}
 	return nil
 }
+
+// DeployFunction uploads the zipped source code to the Twigga Function Engine
+func (a *APIClient) DeployFunction(ctx context.Context, projectId, functionName, runtime, zipFilePath string) error {
+	url := fmt.Sprintf("%s/functions/%s/%s/deploy", strings.TrimRight(a.BaseURL, "/"), projectId, functionName)
+
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+
+	w.WriteField("runtime", runtime)
+
+	f, err := os.Open(zipFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip file: %v", err)
+	}
+	defer f.Close()
+
+	part, err := w.CreateFormFile("code", filepath.Base(zipFilePath))
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return err
+	}
+	w.Close()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	if a.Token != "" {
+		req.Header.Set("BONGO-TOKEN", a.Token)
+	}
+
+	resp, err := a.HTTP.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("deployment failed (Status %d): %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}

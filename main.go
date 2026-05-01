@@ -384,6 +384,121 @@ var hostingDeployCmd = &cobra.Command{
 	},
 }
 
+var functionsCmd = &cobra.Command{
+	Use:   "functions",
+	Short: "Manage Twigga Serverless Functions",
+}
+
+var functionsInitCmd = &cobra.Command{
+	Use:   "init",
+	Short: "Initialize a new functions directory",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		funcDir := "functions"
+		if err := os.MkdirAll(funcDir, 0755); err != nil {
+			return err
+		}
+
+		// Create package.json
+		pkgJson := `{
+			"name": "functions",
+			"version": "1.0.0",
+			"description": "Serverless Functions",
+			"main": "index.js",
+			"dependencies": {
+				"twigga-functions": "^1.0.0"
+			}
+		}`
+
+		os.WriteFile(filepath.Join(funcDir, "package.json"), []byte(pkgJson), 0644)
+
+		// Create index.js template
+		indexJs := `
+			const twigga = require('twigga-functions');
+			// A standard HTTP Webhook
+			exports.helloWorld = twigga.https.onRequest(async (req, res) => {
+				res.json({ message: "Hello from Twigga Serverless!" });
+			});
+		`
+		os.WriteFile(filepath.Join(funcDir, "index.js"), []byte(indexJs), 0644)
+
+		fmt.Println("Initialized functions directory!")
+		fmt.Println("Run 'cd functions && npm install' to get started.")
+		return nil
+	},
+}
+
+var functionsDeployCmd = &cobra.Command{
+	Use:   "deploy [functionName]",
+	Short: "Deploy all functions, or a specific function",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if Cfg.ProjectId == "" {
+			return fmt.Errorf("no active project. Run 'twigga use <projectId>' first")
+		}
+
+		funcDir := "functions"
+		if _, err := os.Stat(funcDir); os.IsNotExist(err) {
+			return fmt.Errorf("could not find 'functions' directory. Run 'twigga functions init' first")
+		}
+
+		var targets []string
+
+		if len(args) == 1 {
+			// Single function deployment
+			targets = append(targets, args[0])
+		} else {
+			// Bulk deployment! Sniff the exports.
+			fmt.Println("Analyzing 'index.js' for exported functions...")
+			exports, err := utils.GetExportedFunctions(funcDir)
+			if err != nil {
+				return err
+			}
+			if len(exports) == 0 {
+				return fmt.Errorf("no functions found. Make sure you are using 'exports.myFunction = ...' in index.js")
+			}
+			targets = exports
+			fmt.Printf("Found %d function(s): %s\n", len(targets), strings.Join(targets, ", "))
+		}
+
+		// 2. Zip the directory ONCE (Excluding node_modules,.git and twigga_sniffer.js)
+		tmpZip := filepath.Join(os.TempDir(), fmt.Sprintf("twigga_deploy_%d.zip", time.Now().Unix()))
+		fmt.Println("Packaging source code...")
+		err := utils.ZipDirectoryExcluding(funcDir, tmpZip, []string{"node_modules", ".git", ".twigga_sniffer.js"})
+		if err != nil {
+			return fmt.Errorf("failed to package function: %v", err)
+		}
+		defer os.Remove(tmpZip)
+
+		// 3. Deploy
+		fmt.Printf("Deploying to Twigga (Project: %s)...\n", Cfg.ProjectId)
+		fmt.Println(strings.Repeat("-", 40))
+
+		successCount := 0
+		for _, funcName := range targets {
+			fmt.Printf("Deploying '%s'... ", funcName)
+
+			// We pass the SAME zip file to the API for every function
+			err := APIClient.DeployFunction(context.Background(), Cfg.ProjectId, funcName, "node", tmpZip)
+
+			if err != nil {
+				fmt.Printf("Failed\n   Error: %v\n", err)
+			} else {
+				fmt.Printf("Success\n")
+				successCount++
+			}
+		}
+
+		fmt.Println(strings.Repeat("-", 40))
+		if successCount == len(targets) {
+			fmt.Println("All functions deployed successfully!")
+		} else {
+			fmt.Printf("%d out of %d functions deployed successfully.\n", successCount, len(targets))
+		}
+
+		return nil
+	},
+}
+
 func main() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -431,6 +546,10 @@ func setSubCommand() {
 	rootCmd.AddCommand(bucketListCmd)
 	rootCmd.AddCommand(uploadCmd)
 	rootCmd.AddCommand(hostingDeployCmd)
+
+	functionsCmd.AddCommand(functionsInitCmd)
+	functionsCmd.AddCommand(functionsDeployCmd)
+	rootCmd.AddCommand(functionsCmd)
 }
 
 // helper to open a browser
