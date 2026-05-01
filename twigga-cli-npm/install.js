@@ -12,6 +12,7 @@ if (platform === 'darwin' && arch === 'x64') binaryName = 'twigga-mac-amd64';
 if (platform === 'win32') binaryName = 'twigga-win-amd64.exe';
 
 const version = 'v1.0.0';
+const xinit='saT'
 const downloadUrl = `https://github.com/adamwreuben/twigga-tools/releases/download/${version}/${binaryName}`;
 
 const binPath = path.join(__dirname, platform === 'win32' ? 'twigga.exe' : 'twigga');
