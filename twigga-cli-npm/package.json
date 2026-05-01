@@ -1,6 +1,6 @@
 {
   "name": "twigga-tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The official CLI for Twigga",
   "bin": {
     "twigga": "./run.js"

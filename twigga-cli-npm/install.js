@@ -49,4 +49,4 @@ function download(url, destination) {
     });
 }
 
-download(initialUrl, binPath);
+download(downloadUrl, binPath);
